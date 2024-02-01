@@ -1,1 +1,4 @@
 variables.tf
+*.tfstate
+*.tfstate.backup
+.terraform/
