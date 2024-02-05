@@ -106,3 +106,329 @@ output "vm_public_ip" {
 output "rds_endpoint" {
   value = aws_db_instance.db_instance.endpoint
 }
+______________________________________________for the last lab the code as below___________________________________
+provider "aws" {
+ profile = "default"
+ region  = "eu-west-2"
+}
+
+
+resource "aws_instance" "lastlab" {
+
+
+   count = 2
+
+
+   ami = var.ami
+
+
+   instance_type = var.instance_type
+
+
+   key_name = "m1lab"
+
+
+   subnet_id         = count.index == 0 ? "subnet-098167b2724e073ab" : "subnet-0f83c27221e24ef2b"
+
+
+   vpc_security_group_ids = [aws_security_group.instance_sg.id]
+
+
+   depends_on = [aws_security_group.instance_sg]
+
+
+}
+
+
+
+
+resource "aws_security_group" "instance_sg" {
+
+
+ name        = "instance_sg"
+
+
+ description = "Allow inbound traffic"
+
+
+
+
+ ingress {
+
+
+   from_port   = 22
+
+
+   to_port     = 22
+
+
+   protocol    = "tcp"
+
+
+   cidr_blocks = ["0.0.0.0/0"]
+
+
+ }
+
+
+
+
+ ingress {
+
+
+   from_port   = 80
+
+
+   to_port     = 80
+
+
+   protocol    = "tcp"
+
+
+   cidr_blocks = ["0.0.0.0/0"]
+
+
+ }
+
+
+
+
+ egress {
+
+
+   from_port       = 0
+
+
+   to_port         = 0
+
+
+   protocol        = "-1"
+
+
+   cidr_blocks     = ["0.0.0.0/0"]
+
+
+ }
+
+
+}
+
+
+
+
+resource "aws_lb" "lb" {
+
+
+ name               = "nginx-lb"
+
+
+ internal           = false
+
+
+ load_balancer_type = "application"
+
+
+ security_groups    = [aws_security_group.lb_sg.id]
+
+
+ subnets            = ["subnet-098167b2724e073ab", "subnet-0f83c27221e24ef2b"]
+
+
+ depends_on = [aws_security_group.lb_sg]
+
+
+}
+
+
+
+
+resource "aws_lb_target_group" "tg" {
+
+
+ name     = "nginx-tg"
+
+
+ port     = 80
+
+
+ protocol = "HTTP"
+
+
+ vpc_id   = "vpc-0104e9c1a5a1e1ee4"
+
+
+
+
+ health_check {
+
+
+   enabled             = true
+
+
+   interval            = 30
+
+
+   path                = "/"
+
+
+   port                = "80"
+
+
+   protocol            = "HTTP"
+
+
+   timeout             = 5
+
+
+   healthy_threshold   = 3
+
+
+   unhealthy_threshold = 3
+
+
+ }
+
+
+}
+
+
+
+
+resource "aws_lb_listener" "front_end" {
+
+
+ load_balancer_arn = aws_lb.lb.arn
+
+
+ port              = "80"
+
+
+ protocol          = "HTTP"
+
+
+ depends_on = [aws_lb.lb]
+
+
+ default_action {
+
+
+   type             = "forward"
+
+
+   target_group_arn = aws_lb_target_group.tg.arn
+
+
+ }
+
+
+}
+
+
+
+
+resource "aws_lb_target_group_attachment" "attach" {
+
+
+ count            = 2
+
+
+ target_group_arn = aws_lb_target_group.tg.arn
+
+
+ target_id        = aws_instance.lastlab[count.index].id
+
+
+ port             = 80
+
+
+ depends_on = [aws_lb_target_group.tg]
+
+
+}
+
+
+
+
+resource "aws_security_group" "lb_sg" {
+
+
+ name        = "lb_sg"
+
+
+ description = "Allow inbound traffic"
+
+
+
+
+ ingress {
+
+
+   from_port   = 80
+
+
+   to_port     = 80
+
+
+   protocol    = "tcp"
+
+
+   cidr_blocks = ["0.0.0.0/0"]
+
+
+ }
+
+
+
+
+ egress {
+
+
+   from_port   = 0
+
+
+   to_port     = 0
+
+
+   protocol    = "-1"
+
+
+   cidr_blocks = ["0.0.0.0/0"]
+
+
+ }
+
+
+}
+
+
+
+
+output "ec2_public_ip" {
+
+
+ value = aws_instance.lastlab[*].public_ip
+
+
+}
+
+
+
+
+output "ec2_dns" {
+
+
+ value = aws_instance.lastlab[*].public_dns
+
+
+}
+
+
+
+
+output "lb_dns" {
+
+
+ value = aws_lb.lb.dns_name
+
+
+}
